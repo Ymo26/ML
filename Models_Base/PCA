@@ -1,0 +1,45 @@
+# pca_visual.py
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+
+# Load dataset
+data = pd.read_csv('hotel_booking.csv')
+
+# Select features (modify as needed)
+features = ['lead_time', 'stays_in_week_nights', 'stays_in_weekend_nights', 'adults', 'children', 'adr']
+X = data[features].fillna(data[features].mean())
+
+# Standardize the data
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Apply PCA (reduce to 2 dimensions)
+pca = PCA(n_components=2)
+principal_components = pca.fit_transform(X_scaled)
+explained_var = pca.explained_variance_ratio_
+
+# Create a DataFrame for PCA results
+pca_df = pd.DataFrame(data=principal_components, columns=['PC1', 'PC2'])
+
+# --- Visualization 1: Explained Variance Ratio ---
+plt.figure(figsize=(6, 4))
+components = np.arange(1, len(explained_var) + 1)
+plt.bar(components, explained_var, color='c', alpha=0.7)
+plt.xlabel("Principal Component")
+plt.ylabel("Explained Variance Ratio")
+plt.title("PCA Explained Variance")
+plt.xticks(components)
+plt.show()
+
+# --- Visualization 2: Scatter Plot of Principal Components ---
+plt.figure(figsize=(8, 6))
+sns.scatterplot(x=pca_df['PC1'], y=pca_df['PC2'], alpha=0.6)
+plt.xlabel("Principal Component 1")
+plt.ylabel("Principal Component 2")
+plt.title("PCA: Projection onto First Two Components")
+plt.show()

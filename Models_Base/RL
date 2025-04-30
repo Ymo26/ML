@@ -1,0 +1,161 @@
+# rl_final_debug_v2.py
+import gymnasium as gym
+from gymnasium import spaces
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from stable_baselines3 import DQN
+from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.env_checker import check_env
+from sklearn.preprocessing import StandardScaler
+
+# Callback to print training progress
+class PrintTrainingProgressCallback(BaseCallback):
+    def __init__(self, check_freq=1000, verbose=1):
+        super(PrintTrainingProgressCallback, self).__init__(verbose)
+        self.check_freq = check_freq
+
+    def _on_step(self) -> bool:
+        if self.n_calls % self.check_freq == 0:
+            print(f"Training timesteps so far: {self.n_calls}")
+        return True
+
+# Custom environment definition
+class HotelBookingEnv(gym.Env):
+    """
+    Custom Gymnasium environment for hotel booking decisions.
+    
+    State:  A vector of selected features.
+    Actions:
+      - 0: Accept booking
+      - 1: Reject booking
+    Reward:
+      +1 if action aligns with the actual cancellation status,
+      -1 otherwise.
+    """
+    metadata = {'render.modes': ['human']}
+
+    def __init__(self, data, max_ep_length=200):
+        super(HotelBookingEnv, self).__init__()
+        self.data = data.reset_index(drop=True)
+        self.max_ep_length = max_ep_length
+        self.step_count = 0
+        self.current_index = 0
+
+        # Define features for the state representation.
+        self.features = ['lead_time', 'stays_in_week_nights',
+                         'stays_in_weekend_nights', 'adults', 'children', 'adr']
+        
+        # Define action space: two discrete actions.
+        self.action_space = spaces.Discrete(2)
+        
+        # Define observation space: a vector of continuous values.
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
+                                            shape=(len(self.features),), dtype=np.float32)
+        
+        # Preprocess the data: fill missing and fit the StandardScaler.
+        self.data[self.features] = self.data[self.features].fillna(self.data[self.features].mean())
+        self.scaler = StandardScaler()
+        self.scaler.fit(self.data[self.features])
+    
+    def reset(self, seed=None, options=None):
+        self.current_index = 0
+        self.step_count = 0
+        # Use DataFrame to wrap the row so columns are preserved.
+        row_data = self.data.loc[self.current_index, self.features]
+        row_df = pd.DataFrame([row_data.values], columns=self.features)
+        obs = self.scaler.transform(row_df)[0].astype(np.float32)
+        return obs, {}
+
+    def step(self, action):
+        record = self.data.iloc[self.current_index]
+        # Reward: if action 0 (accept) and booking not canceled → +1; if action 1 (reject) and booking canceled → +1; else -1.
+        if action == 0:
+            reward = 1 if record['is_canceled'] == 0 else -1
+        else:
+            reward = 1 if record['is_canceled'] == 1 else -1
+
+        self.current_index += 1
+        self.step_count += 1
+
+        terminated = False
+        truncated = False
+
+        if self.current_index >= len(self.data):
+            terminated = True
+            next_state = np.zeros(len(self.features), dtype=np.float32)
+        else:
+            row_data = self.data.loc[self.current_index, self.features]
+            row_df = pd.DataFrame([row_data.values], columns=self.features)
+            next_state = self.scaler.transform(row_df)[0].astype(np.float32)
+        
+        # Truncate episode if max_ep_length is exceeded.
+        if self.step_count >= self.max_ep_length and not terminated:
+            truncated = True
+
+        return next_state, reward, terminated, truncated, {}
+
+    def render(self, mode='human'):
+        pass
+
+# ---------------------------------------
+# Main code: Environment setup, training, evaluation
+# ---------------------------------------
+if __name__ == "__main__":
+    # Load dataset (adjust path as necessary)
+    df = pd.read_csv('hotel_booking.csv')
+    # Optionally sample rows for quicker training during debugging.
+    if len(df) > 2000:
+        df = df.sample(2000, random_state=42).reset_index(drop=True)
+    
+    # Create the custom environment with a maximum episode length.
+    env_instance = HotelBookingEnv(df, max_ep_length=200)
+    # (Optional) Check the environment for API compliance.
+    check_env(env_instance, warn=True)
+
+    # Wrap environment with Monitor for logging, then DummyVecEnv for vectorized training.
+    monitored_env = Monitor(env_instance)
+    vec_env = DummyVecEnv([lambda: monitored_env])
+
+    # Build the DQN model.
+    model = DQN("MlpPolicy", vec_env, verbose=1, learning_rate=1e-3,
+                buffer_size=5000, learning_starts=100, batch_size=32, gamma=0.99)
+
+    # Train model for 3000 timesteps with a callback for progress.
+    callback = PrintTrainingProgressCallback(check_freq=1000)
+    model.learn(total_timesteps=3000, callback=callback)
+    model.save("dqn_hotel_booking_vec")
+
+    # ---------------------------
+    # Evaluation
+    # ---------------------------
+    n_episodes = 5
+    episode_rewards = []
+
+    for ep in range(n_episodes):
+        # Reset the vectorized environment.
+        obs = vec_env.reset()  # Some versions return a tuple; if error, use: obs = vec_env.reset()
+        total_reward = 0
+        done = False
+
+        while not done:
+            action, _states = model.predict(obs, deterministic=True)
+            # DummyVecEnv (for gymnasium) returns 4-tuple: (obs, reward, done, info)
+            obs, reward, done_arr, info = vec_env.step(action)
+            total_reward += reward[0]
+            done = done_arr[0]
+        
+        episode_rewards.append(total_reward)
+        print(f"Episode {ep+1} Reward: {total_reward}")
+
+    # Plot total rewards per episode.
+    plt.figure(figsize=(6, 4))
+    plt.plot(range(1, n_episodes+1), episode_rewards, marker='o', linestyle='-', color='green')
+    plt.title("Total Reward per Episode (RL)")
+    plt.xlabel("Episode")
+    plt.ylabel("Total Reward")
+    plt.grid(True)
+    plt.show()

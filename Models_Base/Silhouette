@@ -1,0 +1,84 @@
+# silhouette_final.py
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_samples, silhouette_score
+
+# 1. Read Data
+try:
+    data = pd.read_csv('hotel_booking.csv')
+    print("CSV loaded successfully.")
+except FileNotFoundError:
+    print("Error: 'hotel_booking.csv' not found in the current directory.")
+    raise SystemExit
+
+# 2. Specify Features for Clustering (adjust if needed)
+features = ['lead_time',
+            'stays_in_week_nights',
+            'stays_in_weekend_nights',
+            'adults',
+            'children',
+            'adr']
+
+# Check if all features exist in the dataset
+missing_cols = [f for f in features if f not in data.columns]
+if missing_cols:
+    print(f"Error: The following required columns are missing: {missing_cols}")
+    raise SystemExit
+
+# 3. Preprocess Data
+# Fill any missing values with column means
+df = data[features].fillna(data[features].mean())
+# Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(df)
+
+print(f"Data shape for clustering: {X_scaled.shape}")
+
+# 4. K-Means Clustering
+k = 3  # Number of clusters
+kmeans = KMeans(n_clusters=k, random_state=42)
+clusters = kmeans.fit_predict(X_scaled)
+print(f"Unique cluster labels: {np.unique(clusters)}")
+
+# 5. Silhouette Calculation
+silhouette_avg = silhouette_score(X_scaled, clusters)
+sample_silhouette_values = silhouette_samples(X_scaled, clusters)
+
+print(f"Average Silhouette Score for k={k}: {silhouette_avg:.2f}")
+
+# 6. Silhouette Plot
+plt.figure(figsize=(10, 6))
+y_lower = 10
+
+for i in range(k):
+    # Extract silhouette scores for samples in cluster i
+    ith_cluster_silhouette_values = sample_silhouette_values[clusters == i]
+    ith_cluster_silhouette_values.sort()
+
+    size_cluster_i = ith_cluster_silhouette_values.shape[0]
+    y_upper = y_lower + size_cluster_i
+
+    plt.fill_betweenx(np.arange(y_lower, y_upper),
+                      0, ith_cluster_silhouette_values,
+                      alpha=0.7, edgecolor='none')
+
+    # Label the silhouette plots with cluster numbers at the middle
+    plt.text(-0.05, y_lower + 0.5 * size_cluster_i, f"Cluster {i}")
+
+    y_lower = y_upper + 10  # Add some gap between clusters
+
+plt.axvline(x=silhouette_avg, color="red", linestyle="--", label="Average Silhouette")
+plt.title(f"Silhouette Plot for k={k} (Avg: {silhouette_avg:.2f})")
+plt.xlabel("Silhouette Coefficient Values")
+plt.ylabel("Cluster Label")
+plt.xlim([-0.1, 1])  # Silhouette range is mostly between -1 and 1
+plt.legend(loc="best")
+
+# 7. Show the Plot
+plt.tight_layout()
+plt.show()
+
+print("Silhouette plot displayed. If you do not see a plot window, check your environment settings.")

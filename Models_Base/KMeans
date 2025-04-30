@@ -1,0 +1,93 @@
+# kmeans_visual_final.py
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_samples, silhouette_score
+
+def main():
+    # -----------------------------------------------------
+    # 1. Load Data and Preprocess
+    # -----------------------------------------------------
+    # Load the dataset (make sure 'hotel_booking.csv' is in your working directory)
+    data = pd.read_csv('hotel_booking.csv')
+    
+    # Define features to be used for clustering (adjust as needed)
+    features = ['lead_time', 'stays_in_week_nights', 'stays_in_weekend_nights', 
+                'adults', 'children', 'adr']
+    
+    # Fill missing values with the mean of each feature
+    df = data[features].fillna(data[features].mean())
+    
+    # Standardize the features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(df)
+
+    # -----------------------------------------------------
+    # 2. Apply K-Means Clustering
+    # -----------------------------------------------------
+    # Choose the number of clusters (e.g., k = 3)
+    k = 3
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    clusters = kmeans.fit_predict(X_scaled)
+    
+    # Append cluster labels to the DataFrame for plotting purposes.
+    data['cluster'] = clusters
+
+    # -----------------------------------------------------
+    # 3. Visualization 1: Scatter Plot of Clusters
+    # -----------------------------------------------------
+    plt.figure(figsize=(8, 6))
+    # For simplicity, use the first two features (scaled) for the scatter plot.
+    sns.scatterplot(x=X_scaled[:, 0], y=X_scaled[:, 1],
+                    hue=clusters, palette='viridis', alpha=0.6)
+    plt.title("K-Means Clustering (Scatter Plot)")
+    plt.xlabel("Scaled " + features[0])
+    plt.ylabel("Scaled " + features[1])
+    plt.legend(title="Cluster")
+    plt.tight_layout()
+    plt.show()
+
+    # -----------------------------------------------------
+    # 4. Visualization 2: Silhouette Plot
+    # -----------------------------------------------------
+    silhouette_avg = silhouette_score(X_scaled, clusters)
+    sample_silhouette_values = silhouette_samples(X_scaled, clusters)
+    
+    print(f"Average Silhouette Score for k={k}: {silhouette_avg:.2f}")
+    
+    plt.figure(figsize=(10, 6))
+    
+    y_lower = 10
+    for i in range(k):
+        # Aggregate silhouette scores for samples in cluster i
+        ith_cluster_silhouette_values = sample_silhouette_values[clusters == i]
+        ith_cluster_silhouette_values.sort()
+
+        size_cluster_i = ith_cluster_silhouette_values.shape[0]
+        y_upper = y_lower + size_cluster_i
+        
+        # Fill silhouette plot for cluster i
+        plt.fill_betweenx(np.arange(y_lower, y_upper),
+                          0, ith_cluster_silhouette_values,
+                          alpha=0.7, edgecolor='none')
+        
+        # Label the silhouette plots with the cluster numbers at the middle of each segment.
+        plt.text(-0.05, y_lower + 0.5 * size_cluster_i, f"Cluster {i}")
+        
+        # Compute new y_lower for next plot
+        y_lower = y_upper + 10  # 10 for the 0 samples gap between clusters
+    
+    plt.axvline(x=silhouette_avg, color="red", linestyle="--")
+    plt.title(f"Silhouette Plot for k={k} (Avg: {silhouette_avg:.2f})")
+    plt.xlabel("Silhouette Coefficient Values")
+    plt.ylabel("Cluster Label")
+    plt.xlim([-0.1, 1])
+    plt.tight_layout()
+    plt.show()
+
+if __name__ == "__main__":
+    main()
