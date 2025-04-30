@@ -1,0 +1,87 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import classification_report, accuracy_score
+from matplotlib.colors import ListedColormap
+
+# ---------------------------
+# Part A: Grid Search and CV Plot
+# ---------------------------
+# Load the iris dataset
+data = load_iris()
+X = data.data
+y = data.target
+
+# Normalize features using StandardScaler (z-score normalization)
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Split the dataset into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.3, random_state=42)
+
+# Define a grid of k values for tuning
+param_grid = {'n_neighbors': np.arange(1, 21)}
+knn = KNeighborsClassifier()
+
+# Use GridSearchCV to find the best k via cross-validation
+grid = GridSearchCV(knn, param_grid, cv=5, scoring='accuracy')
+grid.fit(X_train, y_train)
+
+# Retrieve mean test scores for each k value
+mean_test_scores = grid.cv_results_['mean_test_score']
+k_values = np.arange(1, 21)
+
+# Plot the cross-validation accuracy vs. number of neighbors
+plt.figure(figsize=(8, 5))
+plt.plot(k_values, mean_test_scores, marker='o')
+plt.xlabel('Number of Neighbors (k)')
+plt.ylabel('Mean CV Accuracy')
+plt.title('KNN Grid Search CV Accuracy')
+plt.grid(True)
+plt.show()
+
+print("Optimal k from GridSearchCV:", grid.best_params_['n_neighbors'])
+print("Training Accuracy:", grid.best_score_)
+
+# ---------------------------
+# Part B: Decision Boundary Plot (using 2 features)
+# ---------------------------
+# For visualization, select only the first two features
+X2 = X[:, :2]
+X2_scaled = scaler.fit_transform(X2)
+X2_train, X2_test, y2_train, y2_test = train_test_split(X2_scaled, y, test_size=0.3, random_state=42)
+
+# Fit KNN with best k (from grid search) using only two features
+best_k = grid.best_params_['n_neighbors']
+knn_2d = KNeighborsClassifier(n_neighbors=best_k)
+knn_2d.fit(X2_train, y2_train)
+
+# Create a meshgrid to plot decision boundaries
+x_min, x_max = X2_scaled[:, 0].min() - 1, X2_scaled[:, 0].max() + 1
+y_min, y_max = X2_scaled[:, 1].min() - 1, X2_scaled[:, 1].max() + 1
+xx, yy = np.meshgrid(np.arange(x_min, x_max, 0.02),
+                     np.arange(y_min, y_max, 0.02))
+
+# Predict on each point in the mesh grid
+Z = knn_2d.predict(np.c_[xx.ravel(), yy.ravel()])
+Z = Z.reshape(xx.shape)
+
+# Define colors for the plot
+cmap_light = ListedColormap(['#FFAAAA', '#AAFFAA', '#AAAAFF'])
+cmap_bold  = ListedColormap(['#FF0000', '#00FF00', '#0000FF'])
+
+plt.figure(figsize=(8, 5))
+plt.contourf(xx, yy, Z, alpha=0.4, cmap=cmap_light)
+plt.scatter(X2_scaled[:, 0], X2_scaled[:, 1], c=y, cmap=cmap_bold, edgecolor='k', s=50)
+plt.xlabel(data.feature_names[0])
+plt.ylabel(data.feature_names[1])
+plt.title(f"KNN (k={best_k}) Decision Boundary (first 2 features)")
+plt.show()
+
+# Evaluate on test set for two features and print classification report
+y2_pred = knn_2d.predict(X2_test)
+print("Test Accuracy (2D features):", accuracy_score(y2_test, y2_pred))
+print(classification_report(y2_test, y2_pred))

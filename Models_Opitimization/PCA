@@ -1,0 +1,32 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+
+# Load example dataset (iris data)
+data = load_iris()
+X = data.data
+
+# Normalize features using StandardScaler
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Apply PCA to capture 95% of the variance
+pca = PCA(n_components=0.95)
+X_pca = pca.fit_transform(X_scaled)
+print("Number of components selected:", pca.n_components_)
+
+# Display explained variance for each component
+print("Explained variance ratios:", pca.explained_variance_ratio_)
+print("Total explained variance:", np.sum(pca.explained_variance_ratio_))
+
+# Plot the cumulative explained variance (scree plot)
+plt.figure(figsize=(8, 5))
+cumulative_variance = np.cumsum(pca.explained_variance_ratio_)
+plt.plot(range(1, len(cumulative_variance) + 1), cumulative_variance, marker='o')
+plt.xlabel('Number of Components')
+plt.ylabel('Cumulative Explained Variance')
+plt.title('PCA Explained Variance')
+plt.grid(True)
+plt.show()

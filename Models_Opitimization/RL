@@ -1,0 +1,22 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------------------
+# 1. Fake data: a smooth 1/√t decay plus a little Gaussian noise
+# ------------------------------------------------------------
+episodes   = np.arange(1, 201)               # 200 training episodes
+base_loss  = 1.0 / np.sqrt(episodes)         # monotone decay
+noise      = np.random.normal(0, 0.02, size=episodes.shape)
+loss_curve = base_loss + noise               # noisy loss values
+
+# ------------------------------------------------------------
+# 2. Plot
+# ------------------------------------------------------------
+plt.figure(figsize=(8, 5))
+plt.plot(episodes, loss_curve, linewidth=2)   # default color → orange on most themes
+plt.xlabel("Episode")
+plt.ylabel("Training Loss")
+plt.title("Sample Loss Curve: Loss vs. Episode")
+plt.grid(True)
+plt.tight_layout()
+plt.show()

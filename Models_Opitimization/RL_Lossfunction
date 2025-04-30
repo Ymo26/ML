@@ -1,0 +1,7 @@
+import numpy as np, matplotlib.pyplot as plt
+episodes = np.arange(1, N+1)
+loss     = np.loadtxt("loss_log.csv")
+plt.plot(episodes, loss, linewidth=2)
+plt.xlabel("Episode"); plt.ylabel("Training loss")
+plt.title("A2C loss vs episode"); plt.grid(True)
+plt.tight_layout(); plt.show()

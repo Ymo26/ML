@@ -1,0 +1,30 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------------------
+# 1. Hard‑coded evaluation returns (replace with your own)
+# ------------------------------------------------------------
+baseline_returns = np.array([148, 150, 149, 160, 155, 152, 153, 150, 149, 155])
+tuned_returns    = np.array([215, 225, 220, 230, 210, 218, 222, 219, 224, 228])
+
+episodes = np.arange(1, len(baseline_returns) + 1)
+
+# ------------------------------------------------------------
+# 2. Plot
+# ------------------------------------------------------------
+plt.figure(figsize=(9, 4.5))
+plt.plot(episodes, baseline_returns, marker='o', linewidth=2,
+         label='Baseline A2C')
+plt.plot(episodes, tuned_returns, marker='o', linewidth=2,
+         label='Tuned A2C')
+
+plt.xlabel("Evaluation Episode")
+plt.ylabel("Total Reward")
+plt.title("CartPole – Baseline vs Tuned A2C Performance")
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+# Optional: save to disk
+# plt.savefig("a2c_baseline_vs_tuned.png", dpi=300)

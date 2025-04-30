@@ -1,0 +1,42 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_blobs
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
+# Generate synthetic data for clustering (replace with your dataset as needed)
+X, y_true = make_blobs(n_samples=500, centers=4, cluster_std=0.60, random_state=0)
+
+# Normalize data using standard scaling
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Use silhouette score to evaluate clustering performance over a range of cluster numbers
+silhouette_scores = []
+range_n_clusters = range(2, 10)
+
+for n_clusters in range_n_clusters:
+    kmeans = KMeans(n_clusters=n_clusters, init='k-means++', n_init=10, max_iter=300, random_state=42)
+    cluster_labels = kmeans.fit_predict(X_scaled)
+    score = silhouette_score(X_scaled, cluster_labels)
+    silhouette_scores.append(score)
+    print(f"For n_clusters = {n_clusters}, the silhouette score is {score:.4f}")
+
+# Select the optimal number of clusters
+optimal_clusters = range_n_clusters[np.argmax(silhouette_scores)]
+print("Optimal number of clusters:", optimal_clusters)
+
+# Final K-Means clustering with the optimal number of clusters
+final_kmeans = KMeans(n_clusters=optimal_clusters, init='k-means++', n_init=10, max_iter=300, random_state=42)
+labels = final_kmeans.fit_predict(X_scaled)
+
+# Visualize the clusters along with their centroids
+plt.figure(figsize=(8, 5))
+plt.scatter(X_scaled[:, 0], X_scaled[:, 1], c=labels, s=50, cmap='viridis')
+centers = final_kmeans.cluster_centers_
+plt.scatter(centers[:, 0], centers[:, 1], c='red', s=200, alpha=0.75, marker='X')
+plt.title("K-Means Clustering Results")
+plt.xlabel("Feature 1 (scaled)")
+plt.ylabel("Feature 2 (scaled)")
+plt.show()
