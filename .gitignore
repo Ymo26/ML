@@ -18,3 +18,7 @@ venv/
 
 # OS / misc
 Thumbs.db
+.DS_Store
+*.pyc
+__pycache__/
+.venv/
