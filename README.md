@@ -64,5 +64,5 @@ Chen et al. (2021) – ML for Bitcoin exchange rate prediction
 
 👤 Author
 
-Yi Luo (Lucas P.)
+Yi Luo (Lucas L.)
 📍 Lafayette College — Math & Economics Major--Data Science Minor
